@@ -1,42 +1,104 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Arrow Game Prototype</title>
+    <title>Arrow Grid Prototype</title>
     <style>
-        body { background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
-        #game-container { position: relative; width: 300px; height: 300px; border: 2px solid #444; }
-        .arrow {
-            position: absolute;
-            width: 50px;
-            height: 50px;
-            cursor: pointer;
-            transition: transform 0.5s ease-in;
-            font-size: 40px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            user-select: none;
+        body { background: #1a1a1a; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        #grid { 
+            display: grid; 
+            grid-template-columns: repeat(3, 80px); 
+            grid-template-rows: repeat(3, 80px); 
+            gap: 10px; 
+            background: #333; padding: 10px; border-radius: 8px;
+        }
+        .cell { 
+            width: 80px; height: 80px; background: #444; 
+            display: flex; justify-content: center; align-items: center; 
+            border-radius: 4px; position: relative;
+        }
+        .arrow { 
+            font-size: 40px; cursor: pointer; transition: all 0.4s cubic-bezier(0.5, 0, 0.5, 1); 
+            user-select: none; z-index: 10;
+        }
+        .blocked { animation: shake 0.2s; }
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(5px); }
+            50% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
         }
     </style>
 </head>
 <body>
 
-<div id="game-container">
-    <div class="arrow" id="arrow1" style="left: 125px; top: 125px;" onclick="launchArrow(this, 'right')">➔</div>
-</div>
+    <h2>Arrow Puzzle Test</h2>
+    <div id="grid"></div>
 
-<script>
-    function launchArrow(element, direction) {
-        // Simple logic: Move the arrow far in one direction
-        if (direction === 'right') {
-            element.style.transform = "translateX(500px)";
+    <script>
+        // 1 = Right, 2 = Down, 3 = Left, 4 = Up, 0 = Empty
+        const layout = [
+            [0, 1, 0],
+            [0, 0, 2],
+            [0, 0, 0]
+        ];
+
+        const gridElement = document.getElementById('grid');
+
+        function createGrid() {
+            gridElement.innerHTML = '';
+            for (let r = 0; r < 3; r++) {
+                for (let c = 0; c < 3; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    
+                    if (layout[r][c] !== 0) {
+                        const arrow = document.createElement('div');
+                        arrow.className = 'arrow';
+                        arrow.innerHTML = getArrowSymbol(layout[r][c]);
+                        arrow.onclick = () => tryMove(r, c);
+                        cell.appendChild(arrow);
+                    }
+                    gridElement.appendChild(cell);
+                }
+            }
         }
-        
-        // Remove it from the "game" after the animation finishes
-        setTimeout(() => {
-            element.style.opacity = "0";
-        }, 500);
-    }
-</script>
+
+        function getArrowSymbol(type) {
+            return type === 1 ? '➔' : type === 2 ? '➔' : '➔'; // Simple placeholder
+        }
+
+        // Rotate visual arrows based on type
+        function getRotation(type) {
+            if (type === 1) return 'rotate(0deg)';
+            if (type === 2) return 'rotate(90deg)';
+            return 'rotate(0deg)';
+        }
+
+        function tryMove(r, c) {
+            const type = layout[r][c];
+            let blocked = false;
+
+            // Simple check: Is anyone in front of me in the next cell?
+            if (type === 1) { // Right
+                if (c + 1 < 3 && layout[r][c+1] !== 0) blocked = true;
+            } else if (type === 2) { // Down
+                if (r + 1 < 3 && layout[r+1][c] !== 0) blocked = true;
+            }
+
+            const arrowElement = document.querySelectorAll('.cell')[r * 3 + c].firstChild;
+
+            if (blocked) {
+                arrowElement.classList.add('blocked');
+                setTimeout(() => arrowElement.classList.remove('blocked'), 200);
+            } else {
+                // Move off screen!
+                arrowElement.style.transform = type === 1 ? "translateX(300px)" : "translateY(300px)";
+                arrowElement.style.opacity = "0";
+                layout[r][c] = 0; // Update our "map"
+            }
+        }
+
+        createGrid();
+    </script>
 </body>
 </html>
