@@ -3,201 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Arrows Clone - Level 5</title>
+    <title>Arrows - Smart Mode</title>
     <style>
         :root {
-            --bg-color: #0f172a;
-            --grid-color: #1e293b;
-            --slot-color: #334155;
-            --arrow-color: #38bdf8;
-            --error-color: #ef4444;
+            --bg: #0f172a;
+            --slot: #1e293b;
+            --arrow-idle: #475569; /* Grey for blocked */
+            --arrow-active: #38bdf8; /* Blue for moveable */
         }
-        body {
-            background-color: var(--bg-color);
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            color: white;
-            touch-action: manipulation;
+        body { 
+            background: var(--bg); color: white; margin: 0; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            height: 100vh; font-family: sans-serif; overflow: hidden;
         }
-        .header { margin-bottom: 30px; text-align: center; }
-        .header h1 { margin: 0; font-size: 2rem; letter-spacing: 4px; font-weight: 300; }
-        .header p { color: #94a3b8; margin: 5px 0 0; font-size: 0.9rem; }
 
-        /* The Game Board */
         #game-board {
-            display: grid;
-            grid-template-columns: repeat(5, 60px);
-            grid-template-rows: repeat(5, 60px);
-            gap: 10px;
-            padding: 15px;
-            background: var(--grid-color);
-            border-radius: 20px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
-            position: relative;
+            display: grid; grid-template-columns: repeat(5, 60px); grid-template-rows: repeat(5, 60px);
+            gap: 10px; padding: 20px; background: #1e293b; border-radius: 24px; position: relative;
         }
 
-        /* Empty background slots */
-        .slot {
-            width: 60px;
-            height: 60px;
-            background: var(--slot-color);
-            border-radius: 12px;
-            opacity: 0.3;
-        }
+        .slot { width: 60px; height: 60px; background: #334155; border-radius: 12px; opacity: 0.2; }
 
-        /* The Arrows */
         .arrow {
-            position: absolute;
-            width: 60px;
-            height: 60px;
-            background: var(--arrow-color);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            position: absolute; width: 60px; height: 60px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: default; opacity: 0.5;
+        }
+
+        /* ONLY moveable arrows get these styles */
+        .can-move {
             cursor: pointer;
-            transition: transform 0.4s cubic-bezier(0.45, 0, 0.55, 1), opacity 0.3s;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            z-index: 10;
-        }
-        .arrow::after {
-            content: '▲'; /* Using a standard triangle */
-            font-size: 24px;
-            color: var(--bg-color);
+            opacity: 1;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+            animation: pulse 1.5s infinite;
         }
 
-        /* Movement and Blocked States */
-        .blocked { animation: shake 0.2s ease-in-out; background: var(--error-color) !important; }
-        @keyframes shake {
-            0%, 100% { transform: scale(1) translate(0,0); }
-            25% { transform: scale(1.05) translate(4px, 0); }
-            75% { transform: scale(1.05) translate(-4px, 0); }
+        @keyframes pulse {
+            0% { transform: scale(1) rotate(var(--rot)); }
+            50% { transform: scale(1.05) rotate(var(--rot)); }
+            100% { transform: scale(1) rotate(var(--rot)); }
         }
 
-        #win-screen {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 23, 42, 0.9);
-            z-index: 100; flex-direction: column;
-            align-items: center; justify-content: center;
-        }
-        button {
-            margin-top: 20px; padding: 12px 25px;
-            background: var(--arrow-color); border: none;
-            border-radius: 10px; color: var(--bg-color);
-            font-weight: bold; cursor: pointer;
-        }
+        .arrow::after { content: '▲'; font-size: 24px; color: var(--bg); }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h1>LEVEL 5</h1>
-        <p>TAP TO RELEASE</p>
-    </div>
-
-    <div id="game-board">
-        </div>
-
-    <div id="win-screen">
-        <h2>LEVEL CLEAR!</h2>
-        <button onclick="location.reload()">PLAY AGAIN</button>
-    </div>
+    <div id="game-board"></div>
 
     <script>
         const board = document.getElementById('game-board');
-        const gridSize = 5;
-        const cellSize = 70; // 60px + 10px gap
-        
-        // Directions: 0: Up, 90: Right, 180: Down, 270: Left
-        // Level 5 Logic: Arrows are trapped in a sequence
         let levelData = [
-            { id: 1, r: 1, c: 1, dir: 90 },  // Points Right
-            { id: 2, r: 1, c: 3, dir: 180 }, // Points Down
-            { id: 3, r: 3, c: 3, dir: 270 }, // Points Left
-            { id: 4, r: 3, c: 1, dir: 0 },   // Points Up
-            { id: 5, r: 2, c: 2, dir: 90 }   // Center one
+            { id: 1, r: 1, c: 1, dir: 90 }, 
+            { id: 2, r: 1, c: 3, dir: 180 },
+            { id: 3, r: 3, c: 3, dir: 270 },
+            { id: 4, r: 3, c: 1, dir: 0 },  
+            { id: 5, r: 2, c: 2, dir: 90 }  
         ];
 
-        function createBoard() {
-            // 1. Create 25 background slots
-            for(let i=0; i<25; i++) {
-                const slot = document.createElement('div');
-                slot.className = 'slot';
-                board.appendChild(slot);
-            }
+        function init() {
+            board.innerHTML = '';
+            // Create slots
+            for(let i=0; i<25; i++) board.appendChild(Object.assign(document.createElement('div'), {className:'slot'}));
+            
+            // Create arrows
+            renderArrows();
+            refreshLogic();
+        }
 
-            // 2. Create the arrows
-            levelData.forEach(data => {
-                const arrow = document.createElement('div');
-                arrow.className = 'arrow';
-                arrow.id = `arrow-${data.id}`;
-                updatePosition(arrow, data.r, data.c, data.dir);
-                
-                arrow.onclick = () => tryMove(data);
-                board.appendChild(arrow);
+        function renderArrows() {
+            levelData.forEach(d => {
+                let a = document.createElement('div');
+                a.className = 'arrow';
+                a.id = 'a' + d.id;
+                a.style.setProperty('--rot', d.dir + 'deg');
+                a.style.left = (d.c * 70 + 20) + 'px';
+                a.style.top = (d.r * 70 + 20) + 'px';
+                a.style.transform = `rotate(${d.dir}deg)`;
+                a.style.background = 'var(--arrow-idle)';
+                board.appendChild(a);
             });
         }
 
-        function updatePosition(el, r, c, dir) {
-            const x = c * cellSize + 15; // 15 is padding
-            const y = r * cellSize + 15;
-            el.style.left = `${x}px`;
-            el.style.top = `${y}px`;
-            el.style.transform = `rotate(${dir}deg)`;
-        }
-
-        function tryMove(arrowObj) {
-            const arrowElement = document.getElementById(`arrow-${arrowObj.id}`);
-            let blocked = false;
-
-            // Check if any OTHER arrow is in the path
-            levelData.forEach(other => {
-                if (other.id === arrowObj.id) return;
-
-                if (arrowObj.dir === 90) { // Right
-                    if (other.r === arrowObj.r && other.c > arrowObj.c) blocked = true;
-                } else if (arrowObj.dir === 270) { // Left
-                    if (other.r === arrowObj.r && other.c < arrowObj.c) blocked = true;
-                } else if (arrowObj.dir === 180) { // Down
-                    if (other.c === arrowObj.c && other.r > arrowObj.r) blocked = true;
-                } else if (arrowObj.dir === 0) { // Up
-                    if (other.c === arrowObj.c && other.r < arrowObj.r) blocked = true;
+        function refreshLogic() {
+            levelData.forEach(arrow => {
+                const el = document.getElementById('a' + arrow.id);
+                const blocked = checkCollision(arrow);
+                
+                if (!blocked) {
+                    el.classList.add('can-move');
+                    el.style.background = 'var(--arrow-active)';
+                    el.onclick = () => moveOut(arrow);
+                } else {
+                    el.classList.remove('can-move');
+                    el.style.background = 'var(--arrow-idle)';
+                    el.onclick = null; // Disable clicking
                 }
             });
-
-            if (blocked) {
-                arrowElement.classList.add('blocked');
-                setTimeout(() => arrowElement.classList.remove('blocked'), 250);
-            } else {
-                // Exit Animation
-                let exitX = 0, exitY = 0;
-                if (arrowObj.dir === 90) exitX = 600;
-                if (arrowObj.dir === 270) exitX = -600;
-                if (arrowObj.dir === 180) exitY = 600;
-                if (arrowObj.dir === 0) exitY = -600;
-
-                arrowElement.style.transform = `rotate(${arrowObj.dir}deg) translate(${exitX}px, ${exitY}px)`;
-                arrowElement.style.opacity = '0';
-                
-                // Remove from logic
-                levelData = levelData.filter(a => a.id !== arrowObj.id);
-                
-                if (levelData.length === 0) {
-                    setTimeout(() => {
-                        document.getElementById('win-screen').style.display = 'flex';
-                    }, 500);
-                }
-            }
         }
 
-        createBoard();
+        function checkCollision(a) {
+            return levelData.some(b => {
+                if (a.id === b.id) return false;
+                if (a.dir === 90) return b.r === a.r && b.c > a.c;
+                if (a.dir === 270) return b.r === a.r && b.c < a.c;
+                if (a.dir === 180) return b.c === a.c && b.r > a.r;
+                if (a.dir === 0) return b.c === a.c && b.r < a.r;
+                return false;
+            });
+        }
+
+        function moveOut(a) {
+            const el = document.getElementById('a' + a.id);
+            let x=0, y=0;
+            if(a.dir===90) x=500; if(a.dir===270) x=-500;
+            if(a.dir===180) y=500; if(a.dir===0) y=-500;
+
+            el.style.transform = `rotate(${a.dir}deg) translate(${x}px, ${y}px)`;
+            el.style.opacity = '0';
+            
+            setTimeout(() => {
+                levelData = levelData.filter(item => item.id !== a.id);
+                refreshLogic(); // Re-check all arrows after one is gone
+            }, 400);
+        }
+
+        init();
     </script>
 </body>
 </html>
