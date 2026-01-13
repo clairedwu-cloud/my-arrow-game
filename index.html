@@ -3,130 +3,137 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Arrows - Smart Mode</title>
+    <title>Snake Arrows</title>
     <style>
-        :root {
-            --bg: #0f172a;
-            --slot: #1e293b;
-            --arrow-idle: #475569; /* Grey for blocked */
-            --arrow-active: #38bdf8; /* Blue for moveable */
+        :root { --bg: #0f172a; --slot: #1e293b; --active: #2dd4bf; --blocked: #475569; }
+        body { background: var(--bg); color: white; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; overflow: hidden; }
+        
+        #game-board { 
+            display: grid; grid-template-columns: repeat(6, 50px); grid-template-rows: repeat(6, 50px);
+            gap: 8px; padding: 15px; background: #1e293b; border-radius: 15px; position: relative;
         }
-        body { 
-            background: var(--bg); color: white; margin: 0; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            height: 100vh; font-family: sans-serif; overflow: hidden;
+        .slot { width: 50px; height: 50px; background: #334155; border-radius: 8px; opacity: 0.2; }
+
+        .snake {
+            position: absolute; border-radius: 8px;
+            display: flex; align-items: center; justify-content: flex-end; /* Head at the front */
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            box-sizing: border-box; padding-right: 5px;
         }
+        .snake::after { content: '▶'; font-size: 18px; color: rgba(0,0,0,0.5); }
 
-        #game-board {
-            display: grid; grid-template-columns: repeat(5, 60px); grid-template-rows: repeat(5, 60px);
-            gap: 10px; padding: 20px; background: #1e293b; border-radius: 24px; position: relative;
-        }
-
-        .slot { width: 60px; height: 60px; background: #334155; border-radius: 12px; opacity: 0.2; }
-
-        .arrow {
-            position: absolute; width: 60px; height: 60px; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            cursor: default; opacity: 0.5;
-        }
-
-        /* ONLY moveable arrows get these styles */
-        .can-move {
-            cursor: pointer;
-            opacity: 1;
-            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1) rotate(var(--rot)); }
-            50% { transform: scale(1.05) rotate(var(--rot)); }
-            100% { transform: scale(1) rotate(var(--rot)); }
-        }
-
-        .arrow::after { content: '▲'; font-size: 24px; color: var(--bg); }
+        .can-move { cursor: pointer; filter: brightness(1.2); box-shadow: 0 0 15px rgba(45, 212, 191, 0.3); }
+        
+        #controls { margin-top: 20px; }
+        button { padding: 10px 20px; background: #334155; color: white; border: none; border-radius: 8px; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div id="game-board"></div>
+    <div id="controls">
+        <button onclick="location.reload()">Reset Level</button>
+    </div>
 
     <script>
         const board = document.getElementById('game-board');
-        let levelData = [
-            { id: 1, r: 1, c: 1, dir: 90 }, 
-            { id: 2, r: 1, c: 3, dir: 180 },
-            { id: 3, r: 3, c: 3, dir: 270 },
-            { id: 4, r: 3, c: 1, dir: 0 },  
-            { id: 5, r: 2, c: 2, dir: 90 }  
+        const cellSize = 58; // 50px + 8px gap
+        
+        // Setup: r/c is the tail position. len is how many cells it covers.
+        let snakes = [
+            { id: 1, r: 1, c: 1, len: 3, dir: 90 },  // Horizontal Snake (Right)
+            { id: 2, r: 0, c: 4, len: 2, dir: 180 }, // Vertical Snake (Down)
+            { id: 3, r: 4, c: 5, len: 3, dir: 270 }, // Horizontal Snake (Left)
+            { id: 4, r: 5, c: 1, len: 4, dir: 0 }    // Vertical Snake (Up)
         ];
 
         function init() {
             board.innerHTML = '';
-            // Create slots
-            for(let i=0; i<25; i++) board.appendChild(Object.assign(document.createElement('div'), {className:'slot'}));
-            
-            // Create arrows
-            renderArrows();
-            refreshLogic();
+            for(let i=0; i<36; i++) board.appendChild(Object.assign(document.createElement('div'), {className:'slot'}));
+            renderSnakes();
         }
 
-        function renderArrows() {
-            levelData.forEach(d => {
-                let a = document.createElement('div');
-                a.className = 'arrow';
-                a.id = 'a' + d.id;
-                a.style.setProperty('--rot', d.dir + 'deg');
-                a.style.left = (d.c * 70 + 20) + 'px';
-                a.style.top = (d.r * 70 + 20) + 'px';
-                a.style.transform = `rotate(${d.dir}deg)`;
-                a.style.background = 'var(--arrow-idle)';
-                board.appendChild(a);
-            });
-        }
-
-        function refreshLogic() {
-            levelData.forEach(arrow => {
-                const el = document.getElementById('a' + arrow.id);
-                const blocked = checkCollision(arrow);
+        function renderSnakes() {
+            document.querySelectorAll('.snake').forEach(s => s.remove());
+            snakes.forEach(s => {
+                const el = document.createElement('div');
+                el.className = 'snake';
+                el.id = 's' + s.id;
                 
-                if (!blocked) {
-                    el.classList.add('can-move');
-                    el.style.background = 'var(--arrow-active)';
-                    el.onclick = () => moveOut(arrow);
-                } else {
-                    el.classList.remove('can-move');
-                    el.style.background = 'var(--arrow-idle)';
-                    el.onclick = null; // Disable clicking
+                // Styling based on direction
+                if(s.dir === 90 || s.dir === 270) { // Horizontal
+                    el.style.width = (s.len * cellSize - 8) + 'px';
+                    el.style.height = '50px';
+                } else { // Vertical
+                    el.style.width = '50px';
+                    el.style.height = (s.len * cellSize - 8) + 'px';
+                    el.style.flexDirection = 'column';
+                    el.style.justifyContent = 'flex-end';
                 }
+
+                el.style.left = (s.c * cellSize + 15) + 'px';
+                el.style.top = (s.r * cellSize + 15) + 'px';
+                el.style.transform = `rotate(${s.dir === 180 ? 90 : s.dir === 0 ? 270 : 0}deg)`; // Adjust arrow head visual
+                
+                const moveable = isPathClear(s);
+                el.style.background = moveable ? 'var(--active)' : 'var(--blocked)';
+                if(moveable) {
+                    el.classList.add('can-move');
+                    el.onclick = () => moveSnake(s);
+                }
+                board.appendChild(el);
             });
         }
 
-        function checkCollision(a) {
-            return levelData.some(b => {
-                if (a.id === b.id) return false;
-                if (a.dir === 90) return b.r === a.r && b.c > a.c;
-                if (a.dir === 270) return b.r === a.r && b.c < a.c;
-                if (a.dir === 180) return b.c === a.c && b.r > a.r;
-                if (a.dir === 0) return b.c === a.c && b.r < a.r;
-                return false;
+        // Check if any part of the snake's path is occupied by another snake
+        function isPathClear(s) {
+            // Calculate which cells THIS snake currently occupies
+            const myCells = getOccupiedCells(s);
+            
+            // Look ahead based on direction
+            let checkR = s.r, checkC = s.c;
+            if(s.dir === 90) checkC += s.len; // Start checking from just past the head
+            if(s.dir === 270) checkC -= 1;
+            if(s.dir === 180) checkR += s.len;
+            if(s.dir === 0) checkR -= 1;
+
+            // Simple check: Is there any OTHER snake in the immediate next cell?
+            return !snakes.some(other => {
+                if(other.id === s.id) return false;
+                const otherCells = getOccupiedCells(other);
+                return otherCells.some(oc => {
+                    // This is the simplified "blocked by immediate neighbor" logic
+                    // You can expand this to check the entire path to the edge
+                    if(s.dir === 90) return oc.r === s.r && oc.c > s.c + (s.len-1);
+                    if(s.dir === 270) return oc.r === s.r && oc.c < s.c;
+                    if(s.dir === 180) return oc.c === s.c && oc.r > s.r + (s.len-1);
+                    if(s.dir === 0) return oc.c === s.c && oc.r < s.r;
+                });
             });
         }
 
-        function moveOut(a) {
-            const el = document.getElementById('a' + a.id);
+        function getOccupiedCells(s) {
+            let cells = [];
+            for(let i=0; i<s.len; i++) {
+                if(s.dir === 90 || s.dir === 270) cells.push({r: s.r, c: s.c + i});
+                else cells.push({r: s.r + i, c: s.c});
+            }
+            return cells;
+        }
+
+        function moveSnake(s) {
+            const el = document.getElementById('s' + s.id);
             let x=0, y=0;
-            if(a.dir===90) x=500; if(a.dir===270) x=-500;
-            if(a.dir===180) y=500; if(a.dir===0) y=-500;
+            if(s.dir===90) x=600; if(s.dir===270) x=-600;
+            if(s.dir===180) y=600; if(s.dir===0) y=-600;
 
-            el.style.transform = `rotate(${a.dir}deg) translate(${x}px, ${y}px)`;
+            el.style.transform += ` translate(${x}px, ${y}px)`;
             el.style.opacity = '0';
             
             setTimeout(() => {
-                levelData = levelData.filter(item => item.id !== a.id);
-                refreshLogic(); // Re-check all arrows after one is gone
-            }, 400);
+                snakes = snakes.filter(item => item.id !== s.id);
+                renderSnakes(); // Recalculate everything
+            }, 500);
         }
 
         init();
