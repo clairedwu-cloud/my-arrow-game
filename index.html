@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Arrow Game Prototype</title>
+    <style>
+        body { background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
+        #game-container { position: relative; width: 300px; height: 300px; border: 2px solid #444; }
+        .arrow {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            transition: transform 0.5s ease-in;
+            font-size: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="arrow" id="arrow1" style="left: 125px; top: 125px;" onclick="launchArrow(this, 'right')">➔</div>
+</div>
+
+<script>
+    function launchArrow(element, direction) {
+        // Simple logic: Move the arrow far in one direction
+        if (direction === 'right') {
+            element.style.transform = "translateX(500px)";
+        }
+        
+        // Remove it from the "game" after the animation finishes
+        setTimeout(() => {
+            element.style.opacity = "0";
+        }, 500);
+    }
+</script>
+</body>
+</html>
